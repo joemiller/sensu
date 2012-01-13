@@ -1,18 +1,21 @@
 require File.join(File.dirname(__FILE__), 'config')
 
+require 'thin'
 require 'sinatra/async'
 require 'redis'
 
-require File.join(File.dirname(__FILE__), 'helpers', 'redis')
+require File.join(File.dirname(__FILE__), 'patches', 'redis')
 
 module Sensu
   class API < Sinatra::Base
     register Sinatra::Async
 
     def self.run(options={})
-      EM.run do
+      EM::run do
         self.setup(options)
-        self.run!(:port => $settings.api.port)
+
+        Thin::Logging.silent = true
+        Thin::Server.start(self, $settings.api.port)
 
         %w[INT TERM].each do |signal|
           Signal.trap(signal) do
@@ -24,20 +27,19 @@ module Sensu
 
     def self.setup(options={})
       config = Sensu::Config.new(options)
-      $settings = config.settings
       $logger = config.logger
-      $logger.debug('[setup] -- connecting to redis')
-      $redis = EM.connect($settings.redis.host, $settings.redis.port, Redis::Reconnect)
-      $logger.debug('[setup] -- connecting to rabbitmq')
-      connection = AMQP.connect($settings.rabbitmq.to_hash.symbolize_keys)
-      $amq = MQ.new(connection)
-    end
-
-    def self.stop(signal)
-      $logger.warn('[process] -- ' + signal + ' -- stopping sensu api')
-      EM.add_timer(1) do
-        EM.stop
+      $settings = config.settings
+      if options[:daemonize]
+        Process.daemonize
       end
+      if options[:pid_file]
+        Process.write_pid(options[:pid_file])
+      end
+      $logger.debug('[setup] -- connecting to redis')
+      $redis = Redis.connect($settings.redis.to_hash.symbolize_keys)
+      $logger.debug('[setup] -- connecting to rabbitmq')
+      rabbitmq = AMQP.connect($settings.rabbitmq.to_hash.symbolize_keys)
+      $amq = AMQP::Channel.new(rabbitmq)
     end
 
     before do
@@ -84,7 +86,7 @@ module Sensu
               }
               $amq.queue('results').publish({:client => client, :check => check}.to_json)
             end
-            EM.add_timer(8) do
+            EM::Timer.new(5) do
               $redis.srem('clients', client)
               $redis.del('events:' + client)
               $redis.del('client:' + client)
@@ -99,6 +101,21 @@ module Sensu
           status 404
           body nil
         end
+      end
+    end
+
+    aget '/checks' do
+      $logger.debug('[checks] -- ' + request.ip + ' -- GET -- request for check list')
+      body $settings.checks.to_json
+    end
+
+    aget '/check/:name' do |check|
+      $logger.debug('[check] -- ' + request.ip + ' -- GET -- request for check -- ' + check)
+      if $settings.checks.key?(check)
+        body $settings.checks[check].to_json
+      else
+        status 404
+        body nil
       end
     end
 
@@ -232,8 +249,9 @@ module Sensu
       end
     end
 
-    def self.test(options={})
+    def self.setup_test_scaffolding(options={})
       self.setup(options)
+      $settings.client.timestamp = Time.now.to_i
       $redis.set('client:' + $settings.client.name, $settings.client.to_json).callback do
         $redis.sadd('clients', $settings.client.name).callback do
           $redis.hset('events:' + $settings.client.name, 'test', {
@@ -243,10 +261,19 @@ module Sensu
             :occurrences => 1
           }.to_json).callback do
             $redis.set('stash:test/test', '{"key": "value"}').callback do
-              self.run!(:port => $settings.api.port)
+              Thin::Logging.silent = true
+              Thin::Server.start(self, $settings.api.port)
             end
           end
         end
+      end
+    end
+
+    def self.stop(signal)
+      $logger.warn('[stop] -- stopping sensu api -- ' + signal)
+      $logger.warn('[stop] -- stopping reactor')
+      EM::PeriodicTimer.new(0.25) do
+        EM::stop_event_loop
       end
     end
   end

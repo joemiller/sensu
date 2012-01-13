@@ -17,44 +17,6 @@
 # limitations under the License.
 #
 
-include_recipe "rabbitmq"
-include_recipe "redis::server"
-
-directory "/etc/rabbitmq/ssl"
-
-ssl = data_bag_item("sensu", "ssl")
-
-%w[
-  cacert
-  cert
-  key
-].each do |file|
-  file "/etc/rabbitmq/ssl/#{file}.pem" do
-    content ssl["server"][file]
-    mode 0644
-  end
-end
-
-template "/etc/rabbitmq/rabbitmq.config" do
-  mode 0644
-  notifies :restart, resources(:service => "rabbitmq-server")
-end
-
-rabbitmq_vhost node.sensu.rabbitmq.vhost do
-  action :add
-end
-
-rabbitmq_user node.sensu.rabbitmq.user do
-  password node.sensu.rabbitmq.password
-  action :add
-end
-
-rabbitmq_user node.sensu.rabbitmq.user do
-  vhost node.sensu.rabbitmq.vhost
-  permissions "\".*\" \".*\" \".*\""
-  action :set_permissions
-end
-
 include_recipe "sensu::default"
 
 remote_directory File.join(node.sensu.directory, "handlers") do
@@ -72,19 +34,18 @@ when "ubuntu", "debian"
   service "sensu-server" do
     provider Chef::Provider::Service::Upstart
     action [:enable, :start]
-    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :gem_package => "sensu"), :delayed
+    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :execute => "gem_update"), :delayed
   end
 when "centos", "redhat"
-  if node[:platform_version].to_i <= 5
-    template "/etc/init.d/sensu-server" do
-      source "sensu-init.erb"
-      variables :service => "server", :options => "-l #{node.sensu.log.directory}/sensu.log"
-      mode 0755
-    end
+  template "/etc/init.d/sensu-server" do
+    source "init.erb"
+    variables :service => "server"
+    mode 0755
+  end
 
-    service "sensu-server" do
-      action [:enable, :start]
-      subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :gem_package => "sensu"), :delayed
-    end
+  service "sensu-server" do
+    action [:enable, :start]
+    supports :restart => true
+    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :execute => "gem_update"), :delayed
   end
 end

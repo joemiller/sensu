@@ -1,5 +1,5 @@
 module Redis
-  class Reconnect < Redis::Client
+  class Client
     def connection_completed
       @connected = true
       @port, @host = Socket.unpack_sockaddr_in(get_peername)
@@ -12,7 +12,7 @@ module Redis
 
     def unbind
       unless !@connected || @closing_connection
-        EM.add_timer(1) do
+        EM::Timer.new(1) do
           reconnect(@host, @port)
         end
       else
@@ -21,5 +21,11 @@ module Redis
         end
       end
     end
+  end
+
+  def self.connect(options={})
+    host = options[:host] || 'localhost'
+    port = options[:port] || 6379
+    EM::connect(host, port, Redis::Client)
   end
 end

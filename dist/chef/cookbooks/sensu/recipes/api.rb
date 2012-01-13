@@ -19,8 +19,6 @@
 
 include_recipe "sensu::default"
 
-gem_package "thin"
-
 case node[:platform]
 when "ubuntu", "debian"
   template "/etc/init/sensu-api.conf" do
@@ -32,19 +30,18 @@ when "ubuntu", "debian"
   service "sensu-api" do
     provider Chef::Provider::Service::Upstart
     action [:enable, :start]
-    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :gem_package => "sensu"), :delayed
+    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :execute => "gem_update"), :delayed
   end
 when "centos", "redhat"
-  if node[:platform_version].to_i <= 5
-    template "/etc/init.d/sensu-api" do
-      source "sensu-init.erb"
-      variables :service => "api", :options => "-l #{node.sensu.log.directory}/sensu.log"
-      mode 0755
-    end
+  template "/etc/init.d/sensu-api" do
+    source "init.erb"
+    variables :service => "api"
+    mode 0755
+  end
 
-    service "sensu-api" do
-      action [:enable, :start]
-      subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :gem_package => "sensu"), :delayed
-    end
+  service "sensu-api" do
+    action [:enable, :start]
+    supports :restart => true
+    subscribes :restart, resources(:file => File.join(node.sensu.directory, "config.json"), :execute => "gem_update"), :delayed
   end
 end

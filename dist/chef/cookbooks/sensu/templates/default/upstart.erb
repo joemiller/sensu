@@ -1,7 +1,7 @@
-# Upstart: /etc/init/sensu-<%= @name || @service %>.conf
+# Upstart: /etc/init/sensu-<%= @service %>.conf
 # Managed by OpsChef
 
-description "sensu <%= @name || @service %>"
+description "sensu <%= @service %>"
 
 start on (local-filesystems and net-device-up IFACE=eth0)
 stop on [!12345]
@@ -9,7 +9,7 @@ stop on [!12345]
 respawn
 
 pre-start script
-test -x <%= GemBinPath.path(@service) %>/sensu-<%= @service %> || { stop; exit 0; }
+  test -x <%= node.sensu.bin_path %>/sensu-<%= @service %> || { stop; exit 0; }
 end script
 
-exec sudo -u <%= node.sensu.user %> sh -c "<%= GemBinPath.path(@service) %>/sensu-<%= @service %><% if @options %> <%= @options %><% end %>"
+exec setuidgid <%= node.sensu.user %> <%= node.sensu.bin_path %>/sensu-<%= @service %><% if @options %> <%= @options %><% end %>
