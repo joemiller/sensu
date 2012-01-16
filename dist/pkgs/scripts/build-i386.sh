@@ -5,8 +5,14 @@ fpm -p rubygem-thin-1.3.1-1.i386.rpm -n rubygem-thin --iteration 1 -a i386 -t rp
 fpm -p rubygem-json-1.6.4-1.i386.rpm -n rubygem-json --iteration 1 -a i386 -t rpm -s gem json
 wget 'http://rubygems.org/downloads/eventmachine-1.0.0.beta.4.gem'
 fpm -p rubygem-eventmachine-1.0.0.beta.4-1.i386.rpm -n rubygem-eventmachine --iteration 1 -a i386 -t rpm -s gem ./eventmachine-1.0.0.beta.4.gem 
+wget 'http://rubygems.org/downloads/em-http-request-0.3.0.gem'
+fpm -p rubygem-em-http-request-0.3.0-1.i386.rpm -n rubygem-em-http-request --iteration 1 -a i386 -t rpm -s gem em-http-request-0.3.0.gem
+fpm -p rubygem-escape_utils-0.2.4-1.i386.rpm -n rubygem-escape_utils --iteration 1 -a i386 -t rpm -s gem escape_utils
 
 # NOARCH RPMS
+fpm -p rubygem-em-websocket-0.3.6-1.noarch.rpm -n rubygem-em-websocket --iteration 1 -a noarch -t rpm -s gem em-websocket
+fpm -p rubygem-addressable-2.2.6-1.noarch.rpm -n rubygem-addressable --iteration 1 -a noarch -t rpm -s gem addressable
+fpm -p rubygem-sass-3.1.12-1.noarch.rpm -n rubygem-sass --iteration 1 -a noarch -t rpm -s gem sass
 wget 'http://rubygems.org/downloads/amqp-0.7.4.gem'
 fpm -p rubygem-amqp-0.7.4-1.noarch.rpm -n rubygem-amqp --iteration 1 -a noarch -t rpm -s gem amqp-0.7.4.gem
 fpm -p rubygem-sinatra-1.3.2-1.noarch.rpm -n rubygem-sinatra --iteration 1 -a noarch -t rpm -s gem sinatra
