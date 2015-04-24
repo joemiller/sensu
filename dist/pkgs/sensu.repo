@@ -1,0 +1,6 @@
+[sensu]
+name=Sensu
+baseurl=http://yum.carrollops.com/el/6/sensu/noarch
+enabled=1
+gpgcheck=0
+

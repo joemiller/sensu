@@ -1,0 +1,12 @@
+[sensu-dependencies]
+name=Sensu Dependencies - $basearch
+baseurl=http://yum.carrollops.com/el/6/sensu-dependencies/$basearch
+enabled=1
+gpgcheck=0
+
+[sensu-dependencies-noarch]
+name=Sensu Dependencies - noarch
+baseurl=http://yum.carrollops.com/el/6/sensu-dependencies/noarch
+enabled=1
+gpgcheck=0
+
